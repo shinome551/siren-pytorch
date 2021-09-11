@@ -83,7 +83,7 @@ class SirenNet(nn.Module):
             x = layer(x)
 
             if exists(mod):
-                x *= rearrange(mod, 'd -> () d')
+                x *= rearrange(mod, 'n d -> n () d')
 
         return self.last_layer(x)
 
@@ -110,20 +110,21 @@ class Modulator(nn.Module):
         for layer in self.layers:
             x = layer(x)
             hiddens.append(x)
-            x = torch.cat((x, z))
+            x = torch.cat((x, z), 1)
 
         return tuple(hiddens)
 
 # wrapper
 
 class SirenWrapper(nn.Module):
-    def __init__(self, net, image_width, image_height, latent_dim = None):
+    def __init__(self, net, image_width, image_height, batch_size, latent_dim = None):
         super().__init__()
         assert isinstance(net, SirenNet), 'SirenWrapper must receive a Siren network'
 
         self.net = net
         self.image_width = image_width
         self.image_height = image_height
+        self.batch_size = batch_size
 
         self.modulator = None
         if exists(latent_dim):
@@ -135,20 +136,19 @@ class SirenWrapper(nn.Module):
 
         tensors = [torch.linspace(-1, 1, steps = image_width), torch.linspace(-1, 1, steps = image_height)]
         mgrid = torch.stack(torch.meshgrid(*tensors), dim=-1)
-        mgrid = rearrange(mgrid, 'h w c -> (h w) c')
+        mgrid = mgrid.expand(batch_size, image_height, image_width, 2).clone()
+        mgrid = rearrange(mgrid, 'n h w c -> n (h w) c')
         self.register_buffer('grid', mgrid)
 
     def forward(self, img = None, *, latent = None):
         modulate = exists(self.modulator)
         assert not (modulate ^ exists(latent)), 'latent vector must be only supplied if `latent_dim` was passed in on instantiation'
 
+        ## tuple pf (n, mod_d)
         mods = self.modulator(latent) if modulate else None
 
-        coords = self.grid.clone().detach().requires_grad_()
+        coords = self.grid.clone()#.detach().requires_grad_()
         out = self.net(coords, mods)
-        out = rearrange(out, '(h w) c -> () c h w', h = self.image_height, w = self.image_width)
-
-        if exists(img):
-            return F.mse_loss(img, out)
+        out = rearrange(out, 'n (h w) c -> n c h w', n = self.batch_size ,h = self.image_height, w = self.image_width)
 
         return out
