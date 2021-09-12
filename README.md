@@ -7,7 +7,7 @@ Pytorch implementation of SIREN -  <a href="https://arxiv.org/abs/2006.09661">Im
 ## Install
 
 ```bash
-$ pip install git@github.com:shinome551/siren-pytorch.git
+$ pip install git+https://github.com/shinome551/siren-pytorch.git
 ```
 
 ## Usage
