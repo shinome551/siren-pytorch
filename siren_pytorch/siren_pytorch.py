@@ -117,38 +117,39 @@ class Modulator(nn.Module):
 # wrapper
 
 class SirenWrapper(nn.Module):
-    def __init__(self, net, image_width, image_height, batch_size, latent_dim = None):
+    def __init__(self, net, image_width, image_height, latent_dim = None):
         super().__init__()
         assert isinstance(net, SirenNet), 'SirenWrapper must receive a Siren network'
 
         self.net = net
-        self.image_width = image_width
-        self.image_height = image_height
-        self.batch_size = batch_size
-
+        self.setGrid(image_width, image_height)
+        
         self.modulator = None
         if exists(latent_dim):
             self.modulator = Modulator(
                 dim_in = latent_dim,
                 dim_hidden = net.dim_hidden,
                 num_layers = net.num_layers
-            )
+            )      
 
+    def setGrid(self, image_width, image_height):
         tensors = [torch.linspace(-1, 1, steps = image_width), torch.linspace(-1, 1, steps = image_height)]
         mgrid = torch.stack(torch.meshgrid(*tensors), dim=-1)
-        mgrid = mgrid.expand(batch_size, image_height, image_width, 2).clone()
-        mgrid = rearrange(mgrid, 'n h w c -> n (h w) c')
+        mgrid = rearrange(mgrid, 'h w c -> () (h w) c')
         self.register_buffer('grid', mgrid)
-
-    def forward(self, img = None, *, latent = None):
+        self.image_width = image_width
+        self.image_height = image_height
+    
+    def forward(self, latent = None):
         modulate = exists(self.modulator)
         assert not (modulate ^ exists(latent)), 'latent vector must be only supplied if `latent_dim` was passed in on instantiation'
 
         ## tuple pf (n, mod_d)
         mods = self.modulator(latent) if modulate else None
 
-        coords = self.grid.clone()#.detach().requires_grad_()
+        batch_size = latent.size(0) if exists(latent) else 1
+        coords = self.grid.expand(batch_size, -1, -1).clone()
         out = self.net(coords, mods)
-        out = rearrange(out, 'n (h w) c -> n c h w', n = self.batch_size ,h = self.image_height, w = self.image_width)
+        out = rearrange(out, 'n (h w) c -> n c h w', n = batch_size ,h = self.image_height, w = self.image_width)
 
         return out
