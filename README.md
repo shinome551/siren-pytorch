@@ -1,13 +1,13 @@
-## SIREN in Pytorch
+This repository is forked from <a href="https://github.com/lucidrains/siren-pytorch">lucidrains/siren-pytorch</a>.
 
-[![PyPI version](https://badge.fury.io/py/siren-pytorch.svg)](https://badge.fury.io/py/siren-pytorch)
+## SIREN in Pytorch
 
 Pytorch implementation of SIREN -  <a href="https://arxiv.org/abs/2006.09661">Implicit Neural Representations with Periodic Activation Function</a>
 
 ## Install
 
 ```bash
-$ pip install siren-pytorch
+$ pip install git@github.com:shinome551/siren-pytorch.git
 ```
 
 ## Usage
@@ -99,6 +99,7 @@ You can use this simply by setting an extra keyword `latent_dim`, on the `SirenW
 ```python
 import torch
 from torch import nn
+import torch.nn.functional as F
 from siren_pytorch import SirenNet, SirenWrapper
 
 net = SirenNet(
@@ -113,13 +114,15 @@ wrapper = SirenWrapper(
     net,
     latent_dim = 512,
     image_width = 256,
-    image_height = 256
+    image_height = 256,
+    batch_size = 1
 )
 
-latent = nn.Parameter(torch.zeros(512).normal_(0, 1e-2))
+latent = nn.Parameter(torch.zeros(1, 512).normal_(0, 1e-2))
 img = torch.randn(1, 3, 256, 256)
 
-loss = wrapper(img, latent = latent)
+out = wrapper(latent = latent)
+loss = F.mse_loss(img, out)
 loss.backward()
 
 # after much training ...
