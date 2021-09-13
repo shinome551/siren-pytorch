@@ -114,8 +114,7 @@ wrapper = SirenWrapper(
     net,
     latent_dim = 512,
     image_width = 256,
-    image_height = 256,
-    batch_size = 1
+    image_height = 256
 )
 
 latent = nn.Parameter(torch.zeros(1, 512).normal_(0, 1e-2))
