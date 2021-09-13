@@ -140,7 +140,7 @@ class SirenWrapper(nn.Module):
         self.image_width = image_width
         self.image_height = image_height
     
-    def forward(self, latent = None, device='cpu'):
+    def forward(self, latent = None):
         modulate = exists(self.modulator)
         assert not (modulate ^ exists(latent)), 'latent vector must be only supplied if `latent_dim` was passed in on instantiation'
 
@@ -152,4 +152,4 @@ class SirenWrapper(nn.Module):
         out = self.net(coords, mods)
         out = rearrange(out, 'n (h w) c -> n c h w', n = batch_size ,h = self.image_height, w = self.image_width)
 
-        return out
+        return out.contiguous()
