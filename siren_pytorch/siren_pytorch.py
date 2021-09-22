@@ -120,10 +120,7 @@ class SirenWrapper(nn.Module):
     def __init__(self, net, image_width, image_height, latent_dim = None):
         super().__init__()
         assert isinstance(net, SirenNet), 'SirenWrapper must receive a Siren network'
-
         self.net = net
-        self.setGrid(image_width, image_height)
-        
         self.modulator = None
         if exists(latent_dim):
             self.modulator = Modulator(
@@ -132,24 +129,16 @@ class SirenWrapper(nn.Module):
                 num_layers = net.num_layers
             )      
 
-    def setGrid(self, image_width, image_height, device='cpu'):
-        tensors = [torch.linspace(-1, 1, steps = image_width), torch.linspace(-1, 1, steps = image_height)]
-        mgrid = torch.stack(torch.meshgrid(*tensors), dim=-1)
-        mgrid = rearrange(mgrid, 'h w c -> () (h w) c').to(device)
-        self.register_buffer('grid', mgrid)
-        self.image_width = image_width
-        self.image_height = image_height
-    
-    def forward(self, latent = None):
+    def forward(self, coords, latent = None):
         modulate = exists(self.modulator)
         assert not (modulate ^ exists(latent)), 'latent vector must be only supplied if `latent_dim` was passed in on instantiation'
 
         ## tuple of (n, mod_d)
         mods = self.modulator(latent) if modulate else None
 
-        batch_size = latent.size(0) if exists(latent) else 1
-        coords = self.grid.expand(batch_size, -1, -1)
+        n, c, h, w = coords.size()
+        coords = rearrange(coords, 'n c h w -> n (h w) c', n=n, h=h, w=w, c=c)
         out = self.net(coords, mods)
-        out = rearrange(out, 'n (h w) c -> n c h w', n = batch_size ,h = self.image_height, w = self.image_width)
+        out = rearrange(out, 'n (h w) c -> n c h w', n=n, h=h, w=w, c=c)
 
-        return out.contiguous()
+        return out
