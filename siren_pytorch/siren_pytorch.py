@@ -117,9 +117,10 @@ class Modulator(nn.Module):
 # wrapper
 
 class SirenWrapper(nn.Module):
-    def __init__(self, net, image_width, image_height, latent_dim = None):
+    def __init__(self, net, latent_dim = None):
         super().__init__()
         assert isinstance(net, SirenNet), 'SirenWrapper must receive a Siren network'
+
         self.net = net
         self.modulator = None
         if exists(latent_dim):
@@ -139,6 +140,6 @@ class SirenWrapper(nn.Module):
         n, c, h, w = coords.size()
         coords = rearrange(coords, 'n c h w -> n (h w) c', n=n, h=h, w=w, c=c)
         out = self.net(coords, mods)
-        out = rearrange(out, 'n (h w) c -> n c h w', n=n, h=h, w=w, c=c)
+        out = rearrange(out, 'n (h w) c -> n c h w', n=n, h=h, w=w)
 
         return out
