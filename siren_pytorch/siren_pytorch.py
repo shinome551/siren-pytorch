@@ -137,8 +137,8 @@ class SirenWrapper(nn.Module):
         ## tuple of (n, mod_d)
         mods = self.modulator(latent) if modulate else None
 
-        n, c, h, w = coords.size()
-        coords = rearrange(coords, 'n c h w -> n (h w) c', n=n, h=h, w=w, c=c)
+        n, _, h, w = coords.size()
+        coords = rearrange(coords, 'n c h w -> n (h w) c', n=n, h=h, w=w)
         out = self.net(coords, mods)
         out = rearrange(out, 'n (h w) c -> n c h w', n=n, h=h, w=w)
 
